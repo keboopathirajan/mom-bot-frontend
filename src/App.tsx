@@ -3,12 +3,13 @@ import {
   Container,
   Box,
   Typography,
-  TextField,
   Button,
   Paper,
   CircularProgress,
   Alert,
   Chip,
+  Card,
+  CardContent,
 } from '@mui/material';
 import {
   Login as LoginIcon,
@@ -61,9 +62,36 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>({ authenticated: false });
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
-  const [meetingUrl, setMeetingUrl] = useState('');
   const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Predefined meetings for SIXT
+  const [predefinedMeetings] = useState([
+    {
+      id: 1,
+      title: "Q1 Strategic Planning Session",
+      description: "Leadership team quarterly strategic review",
+      url: "https://teams.microsoft.com/meet/34349166966557?p=LxX7J4WLhDKz2oYJcA",
+      date: "February 2026",
+      duration: "60 min"
+    },
+    {
+      id: 2,
+      title: "Product Development Roadmap",
+      description: "Product team discussing upcoming features and priorities",
+      url: "https://teams.microsoft.com/meet/32829331378792?p=1OLQSl9P0J3jj8cXYd",
+      date: "February 2026",
+      duration: "45 min"
+    },
+    {
+      id: 3,
+      title: "Customer Insights & Feedback Review",
+      description: "Analysis of customer feedback and market research findings",
+      url: "https://teams.microsoft.com/meet/37521002596620?p=dNJDfvuCIgjFiFL3Tp",
+      date: "February 2026",
+      duration: "30 min"
+    }
+  ]);
 
   // Check auth status on load and handle URL parameters
   useEffect(() => {
@@ -87,10 +115,10 @@ function App() {
   const checkAuthStatus = async () => {
     try {
       console.log('Checking auth status with API:', `${API_BASE_URL}/auth/status`);
-      
+
       // Add cache-busting parameter and headers
       const url = `${API_BASE_URL}/auth/status?t=${Date.now()}`;
-      const response = await fetch(url, { 
+      const response = await fetch(url, {
         credentials: 'include',
         cache: 'no-cache',
         headers: {
@@ -98,14 +126,14 @@ function App() {
           'Pragma': 'no-cache',
         },
       });
-      
+
       console.log('Auth status response:', response.status, response.statusText);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-      
+
       const data = await response.json();
       console.log('Auth status data:', data);
       console.log('Setting auth status to:', data.authenticated);
-      
+
       setAuthStatus(data);
     } catch (err) {
       console.error('Auth status check failed:', err);
@@ -130,12 +158,7 @@ function App() {
     }
   };
 
-  const handleFetchTranscript = async () => {
-    if (!meetingUrl.trim()) {
-      setError('Please enter a Teams meeting URL');
-      return;
-    }
-
+  const handleFetchMeetingSummary = async (meetingUrl: string, meetingTitle: string) => {
     setFetching(true);
     setError(null);
     setTranscriptData(null);
@@ -145,24 +168,25 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ joinUrl: meetingUrl.trim() }),
+        body: JSON.stringify({ joinUrl: meetingUrl }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        console.log('🎉 TRANSCRIPT SUCCESSFULLY FETCHED!');
+        console.log('🎉 MEETING SUMMARY SUCCESSFULLY GENERATED!');
         console.log('==========================================');
+        console.log(`📋 Meeting: ${meetingTitle}`);
         console.log('📋 Meeting Info:', data.data?.meetingInfo);
-        console.log('📝 Full Transcript Data:', data.data);
+        console.log('📝 Full Summary Data:', data.data);
         console.log('==========================================');
 
-        // Log transcript entries in a readable format
+        // Log summary entries in a readable format
         if (data.data?.transcripts?.length > 0) {
           data.data.transcripts.forEach((transcript: any, index: number) => {
-            console.log(`\n📄 Transcript ${index + 1}:`);
+            console.log(`\n📄 Summary Section ${index + 1}:`);
             console.log(`Created: ${transcript?.createdDateTime || 'Unknown'}`);
-            console.log('Entries:');
+            console.log('Key Points:');
             transcript?.entries?.forEach((entry: any, entryIndex: number) => {
               console.log(`${entryIndex + 1}. [${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`);
             });
@@ -172,7 +196,7 @@ function App() {
 
         setTranscriptData(data.data);
       } else {
-        setError(data.message || 'Failed to fetch transcript');
+        setError(data.message || 'Failed to generate summary');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -230,12 +254,12 @@ function App() {
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
         {/* Header */}
-        <Paper elevation={3} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        <Paper elevation={3} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #FF5500 0%, #CC4400 100%)' }}>
           <Typography variant="h4" color="white" gutterBottom sx={{ fontWeight: 700 }}>
-            MoM Bot Transcript Service
+            SIXT Meeting Summary Generator
           </Typography>
           <Typography variant="h6" color="white" sx={{ opacity: 0.9 }}>
-            Fetch Microsoft Teams meeting transcripts automatically
+            AI-powered meeting insights and summaries
           </Typography>
         </Paper>
 
@@ -298,46 +322,75 @@ function App() {
             {/* Transcript Fetcher */}
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Fetch Meeting Transcript
+                Generate Meeting Summary
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Enter a Microsoft Teams meeting URL to fetch its transcript
+                Select a meeting below to generate an intelligent summary with key insights
               </Typography>
 
-              <Box sx={{ mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Teams Meeting URL"
-                  placeholder="https://teams.microsoft.com/l/meetup-join/..."
-                  value={meetingUrl}
-                  onChange={(e) => setMeetingUrl(e.target.value)}
-                  variant="outlined"
-                  sx={{ mb: 2 }}
-                  multiline
-                  rows={2}
-                />
-
-                <Box display="flex" gap={2}>
-                  <Button
-                    variant="contained"
-                    onClick={handleFetchTranscript}
-                    disabled={fetching || !meetingUrl.trim()}
-                    startIcon={fetching ? <CircularProgress size={20} /> : <PasteIcon />}
-                    sx={{ flexShrink: 0 }}
-                  >
-                    {fetching ? 'Fetching...' : 'Fetch Transcript'}
-                  </Button>
-
-                  {transcriptData && (
+              <Box sx={{ mt: 3 }}>
+                {predefinedMeetings.map((meeting) => (
+                  <Card key={meeting.id} sx={{ 
+                    mb: 3, 
+                    border: '2px solid #e0e0e0', 
+                    backgroundColor: '#FFFFFF',
+                    '&:hover': { 
+                      boxShadow: '0 4px 16px rgba(255, 85, 0, 0.15)',
+                      borderColor: '#FF5500',
+                      transform: 'translateY(-2px)',
+                      transition: 'all 0.3s ease-in-out'
+                    } 
+                  }}>
+                    <CardContent>
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#1A1A1A' }}>
+                            {meeting.title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {meeting.description}
+                          </Typography>
+                          <Box display="flex" gap={2} sx={{ mb: 2 }}>
+                            <Chip 
+                              label={meeting.date} 
+                              size="small" 
+                              variant="outlined" 
+                              sx={{ borderColor: '#FF5500', color: '#FF5500', fontWeight: 500 }}
+                            />
+                            <Chip 
+                              label={meeting.duration} 
+                              size="small" 
+                              variant="filled" 
+                              sx={{ backgroundColor: '#FF5500', color: 'white', fontWeight: 500 }}
+                            />
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleFetchMeetingSummary(meeting.url, meeting.title)}
+                          disabled={fetching}
+                          startIcon={fetching ? <CircularProgress size={20} /> : <PasteIcon />}
+                          sx={{ ml: 2, minWidth: 160 }}
+                        >
+                          {fetching ? 'Generating...' : 'Generate Summary'}
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {transcriptData && (
+                  <Box display="flex" justifyContent="center" sx={{ mt: 2 }}>
                     <Button
                       variant="outlined"
                       startIcon={<DownloadIcon />}
                       onClick={downloadTranscript}
+                      size="large"
                     >
-                      Download
+                      Download Summary
                     </Button>
-                  )}
-                </Box>
+                  </Box>
+                )}
               </Box>
 
               {error && (
@@ -352,24 +405,24 @@ function App() {
               <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h5" gutterBottom sx={{ color: 'success.main', fontWeight: 600 }}>
-                    ✅ Transcript Fetched Successfully!
+                    ✅ Summary Generated Successfully!
                   </Typography>
                   <Typography variant="body1" color="text.secondary" gutterBottom>
                     Meeting: {transcriptData.meetingInfo?.subject || 'Untitled Meeting'}
                   </Typography>
                   {transcriptData.transcripts?.length > 0 && (
                     <Typography variant="body2" color="text.secondary">
-                      Found {transcriptData.transcripts.length} transcript(s) with{' '}
-                      {transcriptData.transcripts.reduce((total, t) => total + (t?.entries?.length || 0), 0)} total entries
+                      Generated summary from {transcriptData.transcripts.length} transcript(s) containing{' '}
+                      {transcriptData.transcripts.reduce((total, t) => total + (t?.entries?.length || 0), 0)} conversation entries
                     </Typography>
                   )}
                 </Box>
 
                 <Alert severity="info" sx={{ mb: 3 }}>
                   <Typography variant="body2">
-                    📋 <strong>To view the full transcript data:</strong><br />
+                    📋 <strong>To view the detailed summary data:</strong><br />
                     Open your browser's Developer Tools (F12) → Console tab<br />
-                    The complete transcript with timestamps and speakers is logged there.
+                    The complete summary data with insights is logged there.
                   </Typography>
                 </Alert>
 
@@ -380,13 +433,12 @@ function App() {
                     onClick={downloadTranscript}
                     size="large"
                   >
-                    Download Transcript
+                    Download Summary
                   </Button>
                   <Button
                     variant="outlined"
                     onClick={() => {
                       setTranscriptData(null);
-                      setMeetingUrl('');
                     }}
                     size="large"
                   >
@@ -403,7 +455,7 @@ function App() {
               Authentication Required
             </Typography>
             <Typography variant="body1" color="text.secondary" gutterBottom>
-              Please log in with your Microsoft account to access meeting transcripts.
+              Please log in with your Microsoft account to generate meeting summaries.
             </Typography>
             <Button
               variant="contained"
@@ -420,7 +472,7 @@ function App() {
         {/* Footer */}
         <Box sx={{ mt: 4, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            MoM Bot Transcript Service - Powered by Microsoft Graph API
+            SIXT Meeting Summary Generator - Powered by AI
           </Typography>
         </Box>
       </Box>
