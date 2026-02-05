@@ -143,20 +143,20 @@ function App() {
         console.log('📋 Meeting Info:', data.data?.meetingInfo);
         console.log('📝 Full Transcript Data:', data.data);
         console.log('==========================================');
-        
+
         // Log transcript entries in a readable format
         if (data.data?.transcripts?.length > 0) {
-          data.data.transcripts.forEach((transcript, index) => {
+          data.data.transcripts.forEach((transcript: any, index: number) => {
             console.log(`\n📄 Transcript ${index + 1}:`);
             console.log(`Created: ${transcript?.createdDateTime || 'Unknown'}`);
             console.log('Entries:');
-            transcript?.entries?.forEach((entry, entryIndex) => {
+            transcript?.entries?.forEach((entry: any, entryIndex: number) => {
               console.log(`${entryIndex + 1}. [${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`);
             });
           });
         }
         console.log('\n==========================================');
-        
+
         setTranscriptData(data.data);
       } else {
         setError(data.message || 'Failed to fetch transcript');
