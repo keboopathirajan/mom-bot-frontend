@@ -70,27 +70,27 @@ function App() {
   const [predefinedMeetings] = useState([
     {
       id: 1,
-      title: "Q1 Strategic Planning Session",
-      description: "Leadership team quarterly strategic review",
+      title: "Hackathon Project: Integration discussion",
+      description: "Discussion about the integration of the new product with the existing system",
       url: "https://teams.microsoft.com/meet/34349166966557?p=LxX7J4WLhDKz2oYJcA",
       date: "February 2026",
-      duration: "60 min"
+      duration: "30 min"
     },
     {
       id: 2,
-      title: "Product Development Roadmap",
-      description: "Product team discussing upcoming features and priorities",
-      url: "https://teams.microsoft.com/meet/32829331378792?p=1OLQSl9P0J3jj8cXYd",
-      date: "February 2026",
+      title: "Orange Hour January 2026",
+      description: "Discussion about tech trends and activities of the month",
+      url: "https://teams.microsoft.com/meet/39333370029593",
+      date: "January 2026",
       duration: "45 min"
     },
     {
       id: 3,
-      title: "Customer Insights & Feedback Review",
-      description: "Analysis of customer feedback and market research findings",
-      url: "https://teams.microsoft.com/meet/37521002596620?p=dNJDfvuCIgjFiFL3Tp",
+      title: "[ALL HANDS] Digital Experience Engineering Kickoff 2026",
+      description: "Discussion about the new year's goals and plans",
+      url: "https://teams.microsoft.com/meet/3230909735793?p=e52RmplBCjjhsny8oh",
       date: "February 2026",
-      duration: "30 min"
+      duration: "60 min"
     }
   ]);
 
@@ -365,10 +365,10 @@ function App() {
                               label={meeting.duration}
                               size="small"
                               variant="filled"
-                              sx={{ 
-                                background: 'linear-gradient(135deg, rgba(255,80,0,1) 0%, rgba(255,80,0,0.8) 100%)', 
-                                color: 'white', 
-                                fontWeight: 500 
+                              sx={{
+                                background: 'linear-gradient(135deg, rgba(255,80,0,1) 0%, rgba(255,80,0,0.8) 100%)',
+                                color: 'white',
+                                fontWeight: 500
                               }}
                             />
                           </Box>
@@ -378,7 +378,7 @@ function App() {
                           onClick={() => handleFetchMeetingSummary(meeting.url, meeting.title, meeting.id)}
                           disabled={fetching}
                           startIcon={fetchingMeetingId === meeting.id ? <CircularProgress size={20} /> : <PasteIcon />}
-                          sx={{ ml: 2, minWidth: 160 }}
+                          sx={{ ml: 2, width: 230 }}
                         >
                           {fetchingMeetingId === meeting.id ? 'Generating...' : 'Generate Summary'}
                         </Button>
