@@ -74,9 +74,23 @@ function App() {
   const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Check auth status on load
+  // Check auth status on load and handle URL parameters
   useEffect(() => {
-    checkAuthStatus();
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get('auth');
+    
+    if (authStatus === 'success') {
+      // Clear URL params and show success
+      window.history.replaceState({}, '', window.location.pathname);
+      checkAuthStatus(); // This will show authenticated status
+    } else if (authStatus === 'error') {
+      const message = urlParams.get('message') || 'Authentication failed';
+      setError(decodeURIComponent(message));
+      window.history.replaceState({}, '', window.location.pathname);
+      setLoading(false);
+    } else {
+      checkAuthStatus();
+    }
   }, []);
 
   const checkAuthStatus = async () => {
