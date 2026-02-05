@@ -96,7 +96,7 @@ function App() {
   const checkAuthStatus = async () => {
     try {
       console.log('Checking auth status with API:', `${API_BASE_URL}/auth/status`);
-      const response = await fetch(`${API_BASE_URL}/auth/status`, { 
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
         credentials: 'include',
       });
       console.log('Auth status response:', response.status, response.statusText);
@@ -147,8 +147,10 @@ function App() {
       const data = await response.json();
 
       if (data.success) {
+        console.log('Transcript Data received:', data.data);
+        console.log('Meeting Info:', data.data?.meetingInfo);
+        console.log('Transcripts array:', data.data?.transcripts);
         setTranscriptData(data.data);
-        console.log('Transcript Data:', data.data);
       } else {
         setError(data.message || 'Failed to fetch transcript');
       }
@@ -187,19 +189,19 @@ function App() {
   const downloadTranscript = () => {
     if (!transcriptData) return;
 
-    const content = transcriptData.transcripts.map(transcript => {
-      const header = `Meeting: ${transcriptData.meetingInfo.subject}\nDate: ${formatTime(transcriptData.meetingInfo.startDateTime)}\nTranscript ID: ${transcript.id}\n\n`;
-      const entries = transcript.entries.map(entry =>
-        `[${entry.startTime} - ${entry.endTime}] ${entry.speaker ? `${entry.speaker}: ` : ''}${entry.text}`
-      ).join('\n');
+    const content = transcriptData.transcripts?.map((transcript, index) => {
+      const header = `Meeting: ${transcriptData.meetingInfo?.subject || 'Untitled Meeting'}\nDate: ${transcriptData.meetingInfo?.startDateTime ? formatTime(transcriptData.meetingInfo.startDateTime) : 'Unknown'}\nTranscript ID: ${transcript?.id || `transcript-${index + 1}`}\n\n`;
+      const entries = transcript?.entries?.map(entry => 
+        `[${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`
+      ).join('\n') || 'No transcript entries available';
       return header + entries;
-    }).join('\n\n---\n\n');
+    }).join('\n\n---\n\n') || 'No transcript data available';
 
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transcript-${transcriptData.meetingInfo.id}.txt`;
+    a.download = `transcript-${transcriptData.meetingInfo?.id || 'meeting'}.txt`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -349,31 +351,37 @@ function App() {
                 <Card sx={{ mb: 3, background: 'linear-gradient(45deg, #f3f4f6, #e5e7eb)' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
-                      {transcriptData.meetingInfo.subject || 'Untitled Meeting'}
+                      {transcriptData.meetingInfo?.subject || 'Untitled Meeting'}
                     </Typography>
-
+                    
                     <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>
-                      <Chip
-                        icon={<TimeIcon />}
-                        label={`Start: ${formatTime(transcriptData.meetingInfo.startDateTime)}`}
-                        variant="outlined"
-                        size="small"
-                      />
-                      <Chip
-                        icon={<TimeIcon />}
-                        label={`End: ${formatTime(transcriptData.meetingInfo.endDateTime)}`}
-                        variant="outlined"
-                        size="small"
-                      />
-                      <Chip
-                        label={`Duration: ${formatDuration(transcriptData.meetingInfo.startDateTime, transcriptData.meetingInfo.endDateTime)}`}
-                        variant="outlined"
-                        size="small"
-                        color="primary"
-                      />
+                      {transcriptData.meetingInfo?.startDateTime && (
+                        <Chip
+                          icon={<TimeIcon />}
+                          label={`Start: ${formatTime(transcriptData.meetingInfo.startDateTime)}`}
+                          variant="outlined"
+                          size="small"
+                        />
+                      )}
+                      {transcriptData.meetingInfo?.endDateTime && (
+                        <Chip
+                          icon={<TimeIcon />}
+                          label={`End: ${formatTime(transcriptData.meetingInfo.endDateTime)}`}
+                          variant="outlined"
+                          size="small"
+                        />
+                      )}
+                      {transcriptData.meetingInfo?.startDateTime && transcriptData.meetingInfo?.endDateTime && (
+                        <Chip
+                          label={`Duration: ${formatDuration(transcriptData.meetingInfo.startDateTime, transcriptData.meetingInfo.endDateTime)}`}
+                          variant="outlined"
+                          size="small"
+                          color="primary"
+                        />
+                      )}
                     </Box>
 
-                    {transcriptData.meetingInfo.attendees?.length > 0 && (
+                    {transcriptData.meetingInfo?.attendees?.length > 0 && (
                       <Box>
                         <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <GroupsIcon fontSize="small" />
@@ -385,10 +393,10 @@ function App() {
                               key={index}
                               avatar={
                                 <Avatar sx={{ bgcolor: 'primary.main', width: 24, height: 24 }}>
-                                  {attendee.name ? attendee.name.charAt(0).toUpperCase() : 'U'}
+                                  {attendee?.name ? attendee.name.charAt(0).toUpperCase() : 'U'}
                                 </Avatar>
                               }
-                              label={attendee.name || attendee.email}
+                              label={attendee?.name || attendee?.email || 'Unknown'}
                               variant="outlined"
                               size="small"
                             />
@@ -400,39 +408,41 @@ function App() {
                 </Card>
 
                 {/* Transcripts */}
-                {transcriptData.transcripts.length > 0 ? (
+                {transcriptData.transcripts?.length > 0 ? (
                   transcriptData.transcripts.map((transcript, transcriptIndex) => (
-                    <Box key={transcript.id} sx={{ mb: 3 }}>
+                    <Box key={transcript?.id || transcriptIndex} sx={{ mb: 3 }}>
                       <Typography variant="h6" gutterBottom>
                         Transcript {transcriptIndex + 1}
                         <Chip
-                          label={`${transcript.entries.length} entries`}
+                          label={`${transcript?.entries?.length || 0} entries`}
                           size="small"
                           sx={{ ml: 2 }}
                         />
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Created: {formatTime(transcript.createdDateTime)}
-                      </Typography>
-
+                      {transcript?.createdDateTime && (
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Created: {formatTime(transcript.createdDateTime)}
+                        </Typography>
+                      )}
+                      
                       <Divider sx={{ my: 2 }} />
-
+                      
                       <List sx={{ bgcolor: 'background.paper' }}>
-                        {transcript.entries.map((entry, entryIndex) => (
+                        {transcript?.entries?.map((entry, entryIndex) => (
                           <ListItem
                             key={entryIndex}
                             alignItems="flex-start"
                             sx={{
                               borderLeft: '3px solid',
-                              borderLeftColor: entry.speaker ? 'primary.main' : 'grey.300',
+                              borderLeftColor: entry?.speaker ? 'primary.main' : 'grey.300',
                               mb: 1,
-                              bgcolor: entry.speaker ? 'action.hover' : 'transparent',
+                              bgcolor: entry?.speaker ? 'action.hover' : 'transparent',
                             }}
                           >
                             <ListItemText
                               primary={
                                 <Box>
-                                  {entry.speaker && (
+                                  {entry?.speaker && (
                                     <Typography
                                       component="span"
                                       variant="subtitle2"
@@ -443,18 +453,24 @@ function App() {
                                     </Typography>
                                   )}
                                   <Typography component="span" variant="body1">
-                                    {entry.text}
+                                    {entry?.text || 'No content available'}
                                   </Typography>
                                 </Box>
                               }
                               secondary={
-                                <Typography variant="caption" color="text.secondary">
-                                  {entry.startTime} - {entry.endTime}
-                                </Typography>
+                                entry?.startTime && entry?.endTime ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {entry.startTime} - {entry.endTime}
+                                  </Typography>
+                                ) : null
                               }
                             />
                           </ListItem>
-                        ))}
+                        )) || (
+                          <ListItem>
+                            <ListItemText primary="No transcript entries available" />
+                          </ListItem>
+                        )}
                       </List>
                     </Box>
                   ))
