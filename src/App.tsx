@@ -9,13 +9,6 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  Avatar,
-  Card,
-  CardContent,
 } from '@mui/material';
 import {
   Login as LoginIcon,
@@ -23,8 +16,6 @@ import {
   ContentPaste as PasteIcon,
   Download as DownloadIcon,
   Person as PersonIcon,
-  AccessTime as TimeIcon,
-  Groups as GroupsIcon,
 } from '@mui/icons-material';
 
 // API base URL - always use Render backend since auth redirect URI is configured for it
@@ -147,9 +138,25 @@ function App() {
       const data = await response.json();
 
       if (data.success) {
-        console.log('Transcript Data received:', data.data);
-        console.log('Meeting Info:', data.data?.meetingInfo);
-        console.log('Transcripts array:', data.data?.transcripts);
+        console.log('🎉 TRANSCRIPT SUCCESSFULLY FETCHED!');
+        console.log('==========================================');
+        console.log('📋 Meeting Info:', data.data?.meetingInfo);
+        console.log('📝 Full Transcript Data:', data.data);
+        console.log('==========================================');
+        
+        // Log transcript entries in a readable format
+        if (data.data?.transcripts?.length > 0) {
+          data.data.transcripts.forEach((transcript, index) => {
+            console.log(`\n📄 Transcript ${index + 1}:`);
+            console.log(`Created: ${transcript?.createdDateTime || 'Unknown'}`);
+            console.log('Entries:');
+            transcript?.entries?.forEach((entry, entryIndex) => {
+              console.log(`${entryIndex + 1}. [${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`);
+            });
+          });
+        }
+        console.log('\n==========================================');
+        
         setTranscriptData(data.data);
       } else {
         setError(data.message || 'Failed to fetch transcript');
@@ -169,29 +176,12 @@ function App() {
     }
   };
 
-  const formatDuration = (startTime: string, endTime: string) => {
-    try {
-      const start = new Date(startTime).getTime();
-      const end = new Date(endTime).getTime();
-      const durationMs = end - start;
-      const minutes = Math.floor(durationMs / (1000 * 60));
-      const hours = Math.floor(minutes / 60);
-
-      if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-      }
-      return `${minutes}m`;
-    } catch {
-      return 'Unknown';
-    }
-  };
-
   const downloadTranscript = () => {
     if (!transcriptData) return;
 
     const content = transcriptData.transcripts?.map((transcript, index) => {
       const header = `Meeting: ${transcriptData.meetingInfo?.subject || 'Untitled Meeting'}\nDate: ${transcriptData.meetingInfo?.startDateTime ? formatTime(transcriptData.meetingInfo.startDateTime) : 'Unknown'}\nTranscript ID: ${transcript?.id || `transcript-${index + 1}`}\n\n`;
-      const entries = transcript?.entries?.map(entry => 
+      const entries = transcript?.entries?.map(entry =>
         `[${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`
       ).join('\n') || 'No transcript entries available';
       return header + entries;
@@ -346,139 +336,50 @@ function App() {
 
             {/* Transcript Results */}
             {transcriptData && (
-              <Paper elevation={2} sx={{ p: 3 }}>
-                {/* Meeting Info Header */}
-                <Card sx={{ mb: 3, background: 'linear-gradient(45deg, #f3f4f6, #e5e7eb)' }}>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
-                      {transcriptData.meetingInfo?.subject || 'Untitled Meeting'}
+              <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ color: 'success.main', fontWeight: 600 }}>
+                    ✅ Transcript Fetched Successfully!
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
+                    Meeting: {transcriptData.meetingInfo?.subject || 'Untitled Meeting'}
+                  </Typography>
+                  {transcriptData.transcripts?.length > 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      Found {transcriptData.transcripts.length} transcript(s) with{' '}
+                      {transcriptData.transcripts.reduce((total, t) => total + (t?.entries?.length || 0), 0)} total entries
                     </Typography>
-                    
-                    <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>
-                      {transcriptData.meetingInfo?.startDateTime && (
-                        <Chip
-                          icon={<TimeIcon />}
-                          label={`Start: ${formatTime(transcriptData.meetingInfo.startDateTime)}`}
-                          variant="outlined"
-                          size="small"
-                        />
-                      )}
-                      {transcriptData.meetingInfo?.endDateTime && (
-                        <Chip
-                          icon={<TimeIcon />}
-                          label={`End: ${formatTime(transcriptData.meetingInfo.endDateTime)}`}
-                          variant="outlined"
-                          size="small"
-                        />
-                      )}
-                      {transcriptData.meetingInfo?.startDateTime && transcriptData.meetingInfo?.endDateTime && (
-                        <Chip
-                          label={`Duration: ${formatDuration(transcriptData.meetingInfo.startDateTime, transcriptData.meetingInfo.endDateTime)}`}
-                          variant="outlined"
-                          size="small"
-                          color="primary"
-                        />
-                      )}
-                    </Box>
+                  )}
+                </Box>
 
-                    {transcriptData.meetingInfo?.attendees?.length > 0 && (
-                      <Box>
-                        <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <GroupsIcon fontSize="small" />
-                          Attendees ({transcriptData.meetingInfo.attendees.length})
-                        </Typography>
-                        <Box display="flex" flexWrap="wrap" gap={1}>
-                          {transcriptData.meetingInfo.attendees.map((attendee, index) => (
-                            <Chip
-                              key={index}
-                              avatar={
-                                <Avatar sx={{ bgcolor: 'primary.main', width: 24, height: 24 }}>
-                                  {attendee?.name ? attendee.name.charAt(0).toUpperCase() : 'U'}
-                                </Avatar>
-                              }
-                              label={attendee?.name || attendee?.email || 'Unknown'}
-                              variant="outlined"
-                              size="small"
-                            />
-                          ))}
-                        </Box>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <Typography variant="body2">
+                    📋 <strong>To view the full transcript data:</strong><br />
+                    Open your browser's Developer Tools (F12) → Console tab<br />
+                    The complete transcript with timestamps and speakers is logged there.
+                  </Typography>
+                </Alert>
 
-                {/* Transcripts */}
-                {transcriptData.transcripts?.length > 0 ? (
-                  transcriptData.transcripts.map((transcript, transcriptIndex) => (
-                    <Box key={transcript?.id || transcriptIndex} sx={{ mb: 3 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Transcript {transcriptIndex + 1}
-                        <Chip
-                          label={`${transcript?.entries?.length || 0} entries`}
-                          size="small"
-                          sx={{ ml: 2 }}
-                        />
-                      </Typography>
-                      {transcript?.createdDateTime && (
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Created: {formatTime(transcript.createdDateTime)}
-                        </Typography>
-                      )}
-                      
-                      <Divider sx={{ my: 2 }} />
-                      
-                      <List sx={{ bgcolor: 'background.paper' }}>
-                        {transcript?.entries?.map((entry, entryIndex) => (
-                          <ListItem
-                            key={entryIndex}
-                            alignItems="flex-start"
-                            sx={{
-                              borderLeft: '3px solid',
-                              borderLeftColor: entry?.speaker ? 'primary.main' : 'grey.300',
-                              mb: 1,
-                              bgcolor: entry?.speaker ? 'action.hover' : 'transparent',
-                            }}
-                          >
-                            <ListItemText
-                              primary={
-                                <Box>
-                                  {entry?.speaker && (
-                                    <Typography
-                                      component="span"
-                                      variant="subtitle2"
-                                      color="primary"
-                                      sx={{ fontWeight: 600, mr: 1 }}
-                                    >
-                                      {entry.speaker}:
-                                    </Typography>
-                                  )}
-                                  <Typography component="span" variant="body1">
-                                    {entry?.text || 'No content available'}
-                                  </Typography>
-                                </Box>
-                              }
-                              secondary={
-                                entry?.startTime && entry?.endTime ? (
-                                  <Typography variant="caption" color="text.secondary">
-                                    {entry.startTime} - {entry.endTime}
-                                  </Typography>
-                                ) : null
-                              }
-                            />
-                          </ListItem>
-                        )) || (
-                          <ListItem>
-                            <ListItemText primary="No transcript entries available" />
-                          </ListItem>
-                        )}
-                      </List>
-                    </Box>
-                  ))
-                ) : (
-                  <Alert severity="info">
-                    No transcript entries found for this meeting.
-                  </Alert>
-                )}
+                <Box display="flex" justifyContent="center" gap={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<DownloadIcon />}
+                    onClick={downloadTranscript}
+                    size="large"
+                  >
+                    Download Transcript
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setTranscriptData(null);
+                      setMeetingUrl('');
+                    }}
+                    size="large"
+                  >
+                    Fetch Another
+                  </Button>
+                </Box>
               </Paper>
             )}
           </>
