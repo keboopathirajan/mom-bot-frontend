@@ -3,6 +3,7 @@
 React frontend for the MoM Bot Transcript Service.
 
 ## Features
+
 - Microsoft OAuth authentication
 - Teams meeting URL input
 - Transcript fetching and display
@@ -12,16 +13,19 @@ React frontend for the MoM Bot Transcript Service.
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Run development server:
+
 ```bash
 npm run dev
 ```
 
 3. Build for production:
+
 ```bash
 npm run build
 ```

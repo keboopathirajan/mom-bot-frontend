@@ -81,7 +81,7 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/status`, { 
+      const response = await fetch(`${API_BASE_URL}/auth/status`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -156,7 +156,7 @@ function App() {
       const durationMs = end - start;
       const minutes = Math.floor(durationMs / (1000 * 60));
       const hours = Math.floor(minutes / 60);
-      
+
       if (hours > 0) {
         return `${hours}h ${minutes % 60}m`;
       }
@@ -171,7 +171,7 @@ function App() {
 
     const content = transcriptData.transcripts.map(transcript => {
       const header = `Meeting: ${transcriptData.meetingInfo.subject}\nDate: ${formatTime(transcriptData.meetingInfo.startDateTime)}\nTranscript ID: ${transcript.id}\n\n`;
-      const entries = transcript.entries.map(entry => 
+      const entries = transcript.entries.map(entry =>
         `[${entry.startTime} - ${entry.endTime}] ${entry.speaker ? `${entry.speaker}: ` : ''}${entry.text}`
       ).join('\n');
       return header + entries;
@@ -280,7 +280,7 @@ function App() {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Enter a Microsoft Teams meeting URL to fetch its transcript
               </Typography>
-              
+
               <Box sx={{ mt: 2 }}>
                 <TextField
                   fullWidth
@@ -293,18 +293,18 @@ function App() {
                   multiline
                   rows={2}
                 />
-                
+
                 <Box display="flex" gap={2}>
                   <Button
                     variant="contained"
                     onClick={handleFetchTranscript}
                     disabled={fetching || !meetingUrl.trim()}
-                    startIcon={fetching ? <CircularProgress size={20} /> : <ContentPasteIcon />}
+                    startIcon={fetching ? <CircularProgress size={20} /> : <PasteIcon />}
                     sx={{ flexShrink: 0 }}
                   >
                     {fetching ? 'Fetching...' : 'Fetch Transcript'}
                   </Button>
-                  
+
                   {transcriptData && (
                     <Button
                       variant="outlined"
@@ -333,7 +333,7 @@ function App() {
                     <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', fontWeight: 600 }}>
                       {transcriptData.meetingInfo.subject || 'Untitled Meeting'}
                     </Typography>
-                    
+
                     <Box display="flex" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>
                       <Chip
                         icon={<TimeIcon />}
@@ -396,9 +396,9 @@ function App() {
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Created: {formatTime(transcript.createdDateTime)}
                       </Typography>
-                      
+
                       <Divider sx={{ my: 2 }} />
-                      
+
                       <List sx={{ bgcolor: 'background.paper' }}>
                         {transcript.entries.map((entry, entryIndex) => (
                           <ListItem
