@@ -62,9 +62,10 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>({ authenticated: false });
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
+  const [fetchingMeetingId, setFetchingMeetingId] = useState<number | null>(null);
   const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Predefined meetings for SIXT
   const [predefinedMeetings] = useState([
     {
@@ -158,8 +159,9 @@ function App() {
     }
   };
 
-  const handleFetchMeetingSummary = async (meetingUrl: string, meetingTitle: string) => {
+  const handleFetchMeetingSummary = async (meetingUrl: string, meetingTitle: string, meetingId: number) => {
     setFetching(true);
+    setFetchingMeetingId(meetingId);
     setError(null);
     setTranscriptData(null);
 
@@ -202,6 +204,7 @@ function App() {
       setError(err.message || 'An error occurred');
     } finally {
       setFetching(false);
+      setFetchingMeetingId(null);
     }
   };
 
@@ -254,7 +257,7 @@ function App() {
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
         {/* Header */}
-        <Paper elevation={3} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, #FF5500 0%, #CC4400 100%)' }}>
+        <Paper elevation={3} sx={{ p: 3, mb: 3, background: 'linear-gradient(135deg, rgba(255,80,0,1) 0%, rgba(255,80,0,0.8) 100%)' }}>
           <Typography variant="h4" color="white" gutterBottom sx={{ fontWeight: 700 }}>
             SIXT Meeting Summary Generator
           </Typography>
@@ -330,16 +333,17 @@ function App() {
 
               <Box sx={{ mt: 3 }}>
                 {predefinedMeetings.map((meeting) => (
-                  <Card key={meeting.id} sx={{ 
-                    mb: 3, 
-                    border: '2px solid #e0e0e0', 
+                  <Card key={meeting.id} sx={{
+                    mb: 3,
+                    border: '1px solid #e0e0e0',
                     backgroundColor: '#FFFFFF',
-                    '&:hover': { 
-                      boxShadow: '0 4px 16px rgba(255, 85, 0, 0.15)',
-                      borderColor: '#FF5500',
-                      transform: 'translateY(-2px)',
+                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)',
+                    '&:hover': {
+                      boxShadow: '0 8px 24px rgba(255, 80, 0, 0.15)',
+                      borderColor: 'rgba(255,80,0,1)',
+                      transform: 'translateY(-4px)',
                       transition: 'all 0.3s ease-in-out'
-                    } 
+                    }
                   }}>
                     <CardContent>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start">
@@ -351,34 +355,38 @@ function App() {
                             {meeting.description}
                           </Typography>
                           <Box display="flex" gap={2} sx={{ mb: 2 }}>
-                            <Chip 
-                              label={meeting.date} 
-                              size="small" 
-                              variant="outlined" 
-                              sx={{ borderColor: '#FF5500', color: '#FF5500', fontWeight: 500 }}
+                            <Chip
+                              label={meeting.date}
+                              size="small"
+                              variant="outlined"
+                              sx={{ borderColor: 'rgba(255,80,0,1)', color: 'rgba(255,80,0,1)', fontWeight: 500 }}
                             />
-                            <Chip 
-                              label={meeting.duration} 
-                              size="small" 
-                              variant="filled" 
-                              sx={{ backgroundColor: '#FF5500', color: 'white', fontWeight: 500 }}
+                            <Chip
+                              label={meeting.duration}
+                              size="small"
+                              variant="filled"
+                              sx={{ 
+                                background: 'linear-gradient(135deg, rgba(255,80,0,1) 0%, rgba(255,80,0,0.8) 100%)', 
+                                color: 'white', 
+                                fontWeight: 500 
+                              }}
                             />
                           </Box>
                         </Box>
                         <Button
                           variant="contained"
-                          onClick={() => handleFetchMeetingSummary(meeting.url, meeting.title)}
+                          onClick={() => handleFetchMeetingSummary(meeting.url, meeting.title, meeting.id)}
                           disabled={fetching}
-                          startIcon={fetching ? <CircularProgress size={20} /> : <PasteIcon />}
+                          startIcon={fetchingMeetingId === meeting.id ? <CircularProgress size={20} /> : <PasteIcon />}
                           sx={{ ml: 2, minWidth: 160 }}
                         >
-                          {fetching ? 'Generating...' : 'Generate Summary'}
+                          {fetchingMeetingId === meeting.id ? 'Generating...' : 'Generate Summary'}
                         </Button>
                       </Box>
                     </CardContent>
                   </Card>
                 ))}
-                
+
                 {transcriptData && (
                   <Box display="flex" justifyContent="center" sx={{ mt: 2 }}>
                     <Button
