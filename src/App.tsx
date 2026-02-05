@@ -87,12 +87,25 @@ function App() {
   const checkAuthStatus = async () => {
     try {
       console.log('Checking auth status with API:', `${API_BASE_URL}/auth/status`);
-      const response = await fetch(`${API_BASE_URL}/auth/status`, {
+      
+      // Add cache-busting parameter and headers
+      const url = `${API_BASE_URL}/auth/status?t=${Date.now()}`;
+      const response = await fetch(url, { 
         credentials: 'include',
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
       });
+      
       console.log('Auth status response:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
       const data = await response.json();
       console.log('Auth status data:', data);
+      console.log('Setting auth status to:', data.authenticated);
+      
       setAuthStatus(data);
     } catch (err) {
       console.error('Auth status check failed:', err);
