@@ -78,7 +78,7 @@ function App() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const authStatus = urlParams.get('auth');
-    
+
     if (authStatus === 'success') {
       // Clear URL params and show success
       window.history.replaceState({}, '', window.location.pathname);
@@ -95,12 +95,16 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/status`, {
+      console.log('Checking auth status with API:', `${API_BASE_URL}/auth/status`);
+      const response = await fetch(`${API_BASE_URL}/auth/status`, { 
         credentials: 'include',
       });
+      console.log('Auth status response:', response.status, response.statusText);
       const data = await response.json();
+      console.log('Auth status data:', data);
       setAuthStatus(data);
     } catch (err) {
+      console.error('Auth status check failed:', err);
       setAuthStatus({ authenticated: false });
     } finally {
       setLoading(false);
