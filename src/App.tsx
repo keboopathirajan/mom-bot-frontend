@@ -15,48 +15,11 @@ import {
   Login as LoginIcon,
   Logout as LogoutIcon,
   ContentPaste as PasteIcon,
-  Download as DownloadIcon,
   Person as PersonIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
-
-// API base URL - always use Render backend since auth redirect URI is configured for it
-const API_BASE_URL = 'https://mom-bot-transcript-service.onrender.com';
-
-interface AuthStatus {
-  authenticated: boolean;
-  user?: {
-    displayName: string;
-    email: string;
-  };
-  loginUrl?: string;
-}
-
-interface TranscriptEntry {
-  startTime: string;
-  endTime: string;
-  text: string;
-  speaker?: string;
-}
-
-interface Attendee {
-  name: string;
-  email: string;
-}
-
-interface TranscriptData {
-  meetingInfo: {
-    id: string;
-    subject: string;
-    startDateTime: string;
-    endDateTime: string;
-    attendees: Attendee[];
-  };
-  transcripts: Array<{
-    id: string;
-    createdDateTime: string;
-    entries: TranscriptEntry[];
-  }>;
-}
+import { MeetingService } from './services/meetingService';
+import type { AuthStatus, TranscriptData, AnalyzeResponse } from './services/meetingService';
 
 function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>({ authenticated: false });
@@ -64,7 +27,9 @@ function App() {
   const [fetching, setFetching] = useState(false);
   const [fetchingMeetingId, setFetchingMeetingId] = useState<number | null>(null);
   const [transcriptData, setTranscriptData] = useState<TranscriptData | null>(null);
+  const [analyzeResponse, setAnalyzeResponse] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
 
   // Predefined meetings for SIXT
   const [predefinedMeetings] = useState([
@@ -80,7 +45,7 @@ function App() {
       id: 2,
       title: "Orange Hour January 2026",
       description: "Discussion about tech trends and activities of the month",
-      url: "https://teams.microsoft.com/meet/39333370029593",
+      url: "https://teams.microsoft.com/meet/32829331378792?p=1OLQSl9P0J3jj8cXYd",
       date: "January 2026",
       duration: "45 min"
     },
@@ -115,27 +80,8 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      console.log('Checking auth status with API:', `${API_BASE_URL}/auth/status`);
-
-      // Add cache-busting parameter and headers
-      const url = `${API_BASE_URL}/auth/status?t=${Date.now()}`;
-      const response = await fetch(url, {
-        credentials: 'include',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      });
-
-      console.log('Auth status response:', response.status, response.statusText);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      const data = await response.json();
-      console.log('Auth status data:', data);
-      console.log('Setting auth status to:', data.authenticated);
-
-      setAuthStatus(data);
+      const authData = await MeetingService.checkAuthStatus();
+      setAuthStatus(authData);
     } catch (err) {
       console.error('Auth status check failed:', err);
       setAuthStatus({ authenticated: false });
@@ -145,15 +91,15 @@ function App() {
   };
 
   const handleLogin = () => {
-    // Always redirect to Render backend for OAuth
-    window.location.href = `${API_BASE_URL}/auth/login`;
+    window.location.href = MeetingService.getLoginUrl();
   };
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, { credentials: 'include' });
+      await MeetingService.logout();
       setAuthStatus({ authenticated: false });
       setTranscriptData(null);
+      setAnalyzeResponse(null);
     } catch (err) {
       console.error('Logout failed:', err);
     }
@@ -164,78 +110,45 @@ function App() {
     setFetchingMeetingId(meetingId);
     setError(null);
     setTranscriptData(null);
+    setAnalyzeResponse(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/transcript/fetch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ joinUrl: meetingUrl }),
-      });
+      const result = await MeetingService.fetchAndAnalyzeMeeting(meetingUrl, meetingTitle);
 
-      const data = await response.json();
+      if (result.success) {
+        setTranscriptData(result.data!);
+        setAnalyzeResponse(result.analyzeResponse || null);
 
-      if (data.success) {
-        console.log('🎉 MEETING SUMMARY SUCCESSFULLY GENERATED!');
-        console.log('==========================================');
-        console.log(`📋 Meeting: ${meetingTitle}`);
-        console.log('📋 Meeting Info:', data.data?.meetingInfo);
-        console.log('📝 Full Summary Data:', data.data);
-        console.log('==========================================');
-
-        // Log summary entries in a readable format
-        if (data.data?.transcripts?.length > 0) {
-          data.data.transcripts.forEach((transcript: any, index: number) => {
-            console.log(`\n📄 Summary Section ${index + 1}:`);
-            console.log(`Created: ${transcript?.createdDateTime || 'Unknown'}`);
-            console.log('Key Points:');
-            transcript?.entries?.forEach((entry: any, entryIndex: number) => {
-              console.log(`${entryIndex + 1}. [${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`);
-            });
-          });
+        // Log analyze response for debugging
+        if (result.analyzeResponse) {
+          console.log('📊 Analyze Response Mode:', result.analyzeResponse.data?.mode);
+          console.log('🔗 Page URL:', result.analyzeResponse.data?.page_url);
+          console.log('📄 HTML Content Available:', !!result.analyzeResponse.data?.html);
+          if (result.analyzeResponse.data?.html) {
+            console.log('📄 HTML Content Preview:', result.analyzeResponse.data.html.substring(0, 200) + '...');
+          }
         }
-        console.log('\n==========================================');
 
-        setTranscriptData(data.data);
+        if (result.error) {
+          setError(result.error);
+        }
       } else {
-        setError(data.message || 'Failed to generate summary');
+        setError(result.error || 'Failed to process meeting');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      console.error('❌ Error in meeting summary process:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during the process';
+      setError(errorMessage);
     } finally {
       setFetching(false);
       setFetchingMeetingId(null);
     }
   };
 
-  const formatTime = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch {
-      return dateString;
+  const handleConfluenceClick = () => {
+    if (analyzeResponse?.data?.page_url) {
+      window.open(analyzeResponse.data.page_url, '_blank');
     }
-  };
-
-  const downloadTranscript = () => {
-    if (!transcriptData) return;
-
-    const content = transcriptData.transcripts?.map((transcript, index) => {
-      const header = `Meeting: ${transcriptData.meetingInfo?.subject || 'Untitled Meeting'}\nDate: ${transcriptData.meetingInfo?.startDateTime ? formatTime(transcriptData.meetingInfo.startDateTime) : 'Unknown'}\nTranscript ID: ${transcript?.id || `transcript-${index + 1}`}\n\n`;
-      const entries = transcript?.entries?.map(entry =>
-        `[${entry?.startTime || '00:00'} - ${entry?.endTime || '00:00'}] ${entry?.speaker ? `${entry.speaker}: ` : ''}${entry?.text || 'No content'}`
-      ).join('\n') || 'No transcript entries available';
-      return header + entries;
-    }).join('\n\n---\n\n') || 'No transcript data available';
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transcript-${transcriptData.meetingInfo?.id || 'meeting'}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
   };
 
   if (loading) {
@@ -325,10 +238,10 @@ function App() {
             {/* Transcript Fetcher */}
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Generate Meeting Summary
+                Fetch & Analyze Meeting Data
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Select a meeting below to generate an intelligent summary with key insights
+                Select a meeting below to fetch transcripts and generate intelligent analysis with key insights
               </Typography>
 
               <Box sx={{ mt: 3 }}>
@@ -378,27 +291,15 @@ function App() {
                           onClick={() => handleFetchMeetingSummary(meeting.url, meeting.title, meeting.id)}
                           disabled={fetching}
                           startIcon={fetchingMeetingId === meeting.id ? <CircularProgress size={20} /> : <PasteIcon />}
-                          sx={{ ml: 2, width: 230 }}
+                          sx={{ ml: 2, width: 180 }}
                         >
-                          {fetchingMeetingId === meeting.id ? 'Generating...' : 'Generate Summary'}
+                          {fetchingMeetingId === meeting.id ? 'Processing...' : 'Summary'}
                         </Button>
                       </Box>
                     </CardContent>
                   </Card>
                 ))}
 
-                {transcriptData && (
-                  <Box display="flex" justifyContent="center" sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={downloadTranscript}
-                      size="large"
-                    >
-                      Download Summary
-                    </Button>
-                  </Box>
-                )}
               </Box>
 
               {error && (
@@ -408,52 +309,116 @@ function App() {
               )}
             </Paper>
 
-            {/* Transcript Results */}
+            {/* Success Message */}
             {transcriptData && (
-              <Paper elevation={2} sx={{ p: 4, textAlign: 'center' }}>
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h5" gutterBottom sx={{ color: 'success.main', fontWeight: 600 }}>
-                    ✅ Summary Generated Successfully!
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary" gutterBottom>
-                    Meeting: {transcriptData.meetingInfo?.subject || 'Untitled Meeting'}
-                  </Typography>
-                  {transcriptData.transcripts?.length > 0 && (
-                    <Typography variant="body2" color="text.secondary">
-                      Generated summary from {transcriptData.transcripts.length} transcript(s) containing{' '}
-                      {transcriptData.transcripts.reduce((total, t) => total + (t?.entries?.length || 0), 0)} conversation entries
+              <>
+                <Box
+                  sx={{
+                    mt: 2,
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: '#e8f5e8',
+                    border: '1px solid #4caf50',
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2
+                  }}
+                >
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Box
+                      sx={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        backgroundColor: '#4caf50',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ✓
+                    </Box>
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#2e7d32' }}>
+                      Summary generated successfully!
                     </Typography>
+                  </Box>
+
+                  {/* Show green Confluence button only if mode is "publish" */}
+                  {analyzeResponse?.data?.mode === "publish" && analyzeResponse?.data?.page_url && (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<OpenInNewIcon />}
+                      onClick={handleConfluenceClick}
+                      size="small"
+                      sx={{
+                        backgroundColor: '#4caf50',
+                        '&:hover': {
+                          backgroundColor: '#388e3c'
+                        },
+                        minWidth: 'auto',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Open in Confluence
+                    </Button>
                   )}
                 </Box>
 
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    📋 <strong>To view the detailed summary data:</strong><br />
-                    Open your browser's Developer Tools (F12) → Console tab<br />
-                    The complete summary data with insights is logged there.
-                  </Typography>
-                </Alert>
-
-                <Box display="flex" justifyContent="center" gap={2}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<DownloadIcon />}
-                    onClick={downloadTranscript}
-                    size="large"
-                  >
-                    Download Summary
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      setTranscriptData(null);
-                    }}
-                    size="large"
-                  >
-                    Fetch Another
-                  </Button>
-                </Box>
-              </Paper>
+                {/* Display HTML content when test_mode is true */}
+                {analyzeResponse?.data?.html && (
+                  <Paper elevation={2} sx={{ p: 3, mt: 2 }}>
+                    <Typography variant="h6" gutterBottom sx={{ mb: 2, color: 'primary.main' }}>
+                      📋 Generated Summary
+                    </Typography>
+                    <Box
+                      dangerouslySetInnerHTML={{ __html: analyzeResponse.data.html }}
+                      sx={{
+                        '& h1, & h2, & h3, & h4, & h5, & h6': {
+                          color: 'text.primary',
+                          marginTop: 2,
+                          marginBottom: 1,
+                        },
+                        '& p': {
+                          marginBottom: 1,
+                          color: 'text.secondary',
+                        },
+                        '& ul, & ol': {
+                          paddingLeft: 2,
+                          marginBottom: 1,
+                        },
+                        '& li': {
+                          marginBottom: 0.5,
+                          color: 'text.secondary',
+                        },
+                        '& strong': {
+                          color: 'text.primary',
+                        },
+                        '& code': {
+                          backgroundColor: 'grey.100',
+                          padding: '2px 4px',
+                          borderRadius: '4px',
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                        },
+                        '& pre': {
+                          backgroundColor: 'grey.100',
+                          padding: 2,
+                          borderRadius: 1,
+                          overflow: 'auto',
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                        }
+                      }}
+                    />
+                  </Paper>
+                )}
+              </>
             )}
           </>
         ) : (
